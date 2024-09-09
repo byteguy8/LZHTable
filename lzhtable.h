@@ -52,4 +52,6 @@ int lzhtable_put(uint8_t *key, size_t key_size, void *value, struct _lzhtable_ *
 int lzhtable_remove(uint8_t *key, size_t key_size, struct _lzhtable_ *table, void **value);
 void lzhtable_clear(void (*clear_fn)(void *value), struct _lzhtable_ *table);
 
+#define LZHTABLE_SIZE(table) (table->n)
+
 #endif
