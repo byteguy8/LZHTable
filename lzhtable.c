@@ -285,3 +285,25 @@ int lzhtable_remove(uint8_t *key, size_t key_size, struct _lzhtable_ *table, voi
 
     return 0;
 }
+
+void lzhtable_clear(void (*clear_fn)(void *value), struct _lzhtable_ *table)
+{
+    table->n = 0;
+    table->nodes = NULL;
+    
+    memset(table->buckets, 0, sizeof(struct _lzhtable_bucket_) * table->m);
+
+    struct _lzhtable_node_ *node = table->nodes;
+
+    while (node)
+    {
+        struct _lzhtable_node_ *prev = node->previous_table_node;
+
+        if (clear_fn)
+            clear_fn(node->value);
+
+        lzhtable_node_destroy(node, table);
+
+        node = prev;
+    }
+}

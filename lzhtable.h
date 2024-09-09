@@ -57,4 +57,6 @@ void *lzhtable_get(uint8_t *key, size_t key_size, struct _lzhtable_ *table);
 int lzhtable_put(uint8_t *key, size_t key_size, void *value, struct _lzhtable_ *table, uint32_t **hash_out);
 int lzhtable_remove(uint8_t *key, size_t key_size, struct _lzhtable_ *table, void **value);
 
+void lzhtable_clear(void (*clear_fn)(void *value), struct _lzhtable_ *table);
+
 #endif
