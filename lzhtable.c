@@ -4,6 +4,7 @@
 static void *_alloc_(size_t size, struct _lzhtable_allocator_ *allocator);
 static void *_realloc_(void *ptr, size_t size, struct _lzhtable_allocator_ *allocator);
 static void _dealloc_(void *ptr, struct _lzhtable_allocator_ *allocator);
+static uint32_t jenkins_hash(const uint8_t *key, size_t length);
 
 // private implementation
 void *_alloc_(size_t size, struct _lzhtable_allocator_ *allocator)
@@ -29,6 +30,25 @@ void _dealloc_(void *ptr, struct _lzhtable_allocator_ *allocator)
     }
 
     free(ptr);
+}
+
+uint32_t jenkins_hash(const uint8_t *key, size_t length)
+{
+    size_t i = 0;
+    uint32_t hash = 0;
+
+    while (i != length)
+    {
+        hash += key[i++];
+        hash += hash << 10;
+        hash ^= hash >> 6;
+    }
+
+    hash += hash << 3;
+    hash ^= hash >> 11;
+    hash += hash << 15;
+
+    return hash;
 }
 
 // public implementation
@@ -100,25 +120,6 @@ void lzhtable_destroy(struct _lzhtable_ *table)
     table->nodes = NULL;
 
     _dealloc_(table, allocator);
-}
-
-uint32_t jenkins_hash(const uint8_t *key, size_t length)
-{
-    size_t i = 0;
-    uint32_t hash = 0;
-
-    while (i != length)
-    {
-        hash += key[i++];
-        hash += hash << 10;
-        hash ^= hash >> 6;
-    }
-
-    hash += hash << 3;
-    hash ^= hash >> 11;
-    hash += hash << 15;
-
-    return hash;
 }
 
 int lzhtable_compare(uint8_t *key, size_t key_size, struct _lzhtable_bucket_ *bucket, struct _lzhtable_node_ **out_node)
