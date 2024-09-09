@@ -256,7 +256,7 @@ int lzhtable_remove(uint8_t *key, size_t key_size, struct _lzhtable_ *table, voi
     struct _lzhtable_bucket_ *bucket = &table->buckets[index];
 
     if (bucket->size == 0)
-        return 0;
+        return 1;
 
     struct _lzhtable_node_ *node = NULL;
 
@@ -284,10 +284,10 @@ int lzhtable_remove(uint8_t *key, size_t key_size, struct _lzhtable_ *table, voi
 
         table->n--;
 
-        return 1;
+        return 0;
     }
 
-    return 0;
+    return 1;
 }
 
 void lzhtable_clear(void (*clear_fn)(void *value), struct _lzhtable_ *table)
