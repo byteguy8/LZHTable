@@ -242,6 +242,7 @@ int lzhtable_put(uint8_t *key, size_t key_size, void *value, struct _lzhtable_ *
         node->previous_table_node = table->nodes;
     }
 
+    table->n++;
     table->nodes = node;
 
     return 0;
@@ -280,6 +281,8 @@ int lzhtable_remove(uint8_t *key, size_t key_size, struct _lzhtable_ *table, voi
             node->next_bucket_node->previous_bucket_node = node->previous_bucket_node;
 
         lzhtable_node_destroy(node, table);
+
+        table->n--;
 
         return 1;
     }
