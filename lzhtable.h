@@ -46,7 +46,7 @@ typedef struct _lzhtable_
 
 // interface
 struct _lzhtable_ *lzhtable_create(size_t length, struct _lzhtable_allocator_ *allocator);
-void lzhtable_destroy(struct _lzhtable_ *table);
+void lzhtable_destroy(void (*destroy_value)(void *value), struct _lzhtable_ *table);
 struct _lzhtable_bucket_ *lzhtable_contains(uint8_t *key, size_t key_size, struct _lzhtable_ *table, struct _lzhtable_node_ **node_out);
 void *lzhtable_get(uint8_t *key, size_t key_size, struct _lzhtable_ *table);
 int lzhtable_put(uint8_t *key, size_t key_size, void *value, struct _lzhtable_ *table, uint32_t **hash_out);

@@ -165,7 +165,7 @@ struct _lzhtable_ *lzhtable_create(size_t length, struct _lzhtable_allocator_ *a
     return table;
 }
 
-void lzhtable_destroy(struct _lzhtable_ *table)
+void lzhtable_destroy(void (*destroy_value)(void *value), struct _lzhtable_ *table)
 {
     if (!table)
         return;
@@ -175,8 +175,12 @@ void lzhtable_destroy(struct _lzhtable_ *table)
 
     while (node)
     {
+        void *value = node->value;
         struct _lzhtable_node_ *previous = node->previous_table_node;
 
+        if(destroy_value)
+            destroy_value(value);
+        
         lzhtable_node_destroy(node, table);
 
         node = previous;
