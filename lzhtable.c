@@ -2,8 +2,8 @@
 
 // private interface
 static void *_alloc_(size_t size, struct _lzhtable_allocator_ *allocator);
-static void *_realloc_(void *ptr, size_t size, struct _lzhtable_allocator_ *allocator);
-static void _dealloc_(void *ptr, struct _lzhtable_allocator_ *allocator);
+static void *_realloc_(void *ptr, size_t old_size, size_t new_size, struct _lzhtable_allocator_ *allocator);
+static void _dealloc_(void *ptr, size_t size, struct _lzhtable_allocator_ *allocator);
 
 static uint32_t jenkins_hash(const uint8_t *key, size_t length);
 void lzhtable_node_destroy(struct _lzhtable_node_ *node, struct _lzhtable_ *table);
@@ -13,23 +13,22 @@ int lzhtable_bucket_insert(uint8_t *key, size_t key_size, void *value, struct _l
 // private implementation
 void *_alloc_(size_t size, struct _lzhtable_allocator_ *allocator)
 {
-    return allocator ? allocator->alloc(size) : malloc(size);
+    return allocator ? allocator->alloc(size, allocator->ctx) : malloc(size);
 }
 
-void *_realloc_(void *ptr, size_t size, struct _lzhtable_allocator_ *allocator)
+void *_realloc_(void *ptr, size_t old_size, size_t new_size, struct _lzhtable_allocator_ *allocator)
 {
-    return allocator ? allocator->realloc(ptr, size) : realloc(ptr, size);
+    return allocator ? allocator->realloc(ptr, old_size, new_size, allocator->ctx) : realloc(ptr, new_size);
 }
 
-void _dealloc_(void *ptr, struct _lzhtable_allocator_ *allocator)
+void _dealloc_(void *ptr, size_t size, struct _lzhtable_allocator_ *allocator)
 {
     if (!ptr)
         return;
 
     if (allocator)
     {
-        allocator->dealloc(ptr);
-
+        allocator->dealloc(ptr, size, allocator->ctx);
         return;
     }
 
@@ -57,7 +56,7 @@ uint32_t jenkins_hash(const uint8_t *key, size_t length)
 
 void lzhtable_node_destroy(struct _lzhtable_node_ *node, struct _lzhtable_ *table)
 {
-    _dealloc_(node->key, table->allocator);
+    _dealloc_(node->key, node->key_size, table->allocator);
 
     node->key = NULL;
     node->key_size = 0;
@@ -69,7 +68,7 @@ void lzhtable_node_destroy(struct _lzhtable_node_ *node, struct _lzhtable_ *tabl
     node->next_bucket_node = NULL;
     node->previous_bucket_node = NULL;
 
-    _dealloc_(node, table->allocator);
+    _dealloc_(node, sizeof(struct _lzhtable_node_), table->allocator);
 }
 
 int lzhtable_compare(uint8_t *key, size_t key_size, struct _lzhtable_bucket_ *bucket, struct _lzhtable_node_ **out_node)
@@ -104,8 +103,8 @@ int lzhtable_bucket_insert(uint8_t *key, size_t key_size, void *value, struct _l
 
     if (!key_cpy || !node)
     {
-        _dealloc_(key_cpy, allocator);
-        _dealloc_(node, allocator);
+        _dealloc_(key_cpy, key_size, allocator);
+        _dealloc_(node, sizeof(struct _lzhtable_node_), allocator);
 
         return 1;
     }
@@ -149,8 +148,8 @@ struct _lzhtable_ *lzhtable_create(size_t length, struct _lzhtable_allocator_ *a
 
     if (!buckets || !table)
     {
-        _dealloc_(buckets, allocator);
-        _dealloc_(table, allocator);
+        _dealloc_(buckets, buckets_length, allocator);
+        _dealloc_(table, sizeof(struct _lzhtable_), allocator);
 
         return NULL;
     }
@@ -183,14 +182,14 @@ void lzhtable_destroy(struct _lzhtable_ *table)
         node = previous;
     }
 
-    _dealloc_(table->buckets, allocator);
+    _dealloc_(table->buckets, sizeof(struct _lzhtable_bucket_) * table->m, allocator);
 
     table->m = 0;
     table->n = 0;
     table->buckets = NULL;
     table->nodes = NULL;
 
-    _dealloc_(table, allocator);
+    _dealloc_(table, sizeof(struct _lzhtable_), allocator);
 }
 
 struct _lzhtable_bucket_ *lzhtable_contains(uint8_t *key, size_t key_size, struct _lzhtable_ *table, struct _lzhtable_node_ **node_out)

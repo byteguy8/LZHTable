@@ -9,9 +9,10 @@
 
 typedef struct _lzhtable_allocator_
 {
-    void *(*alloc)(size_t byes);
-    void *(*realloc)(void *ptr, size_t bytes);
-    void (*dealloc)(void *ptr);
+    void *(*alloc)(size_t byes, void *ctx);
+    void *(*realloc)(void *ptr, size_t old_size, size_t new_size, void *ctx);
+    void (*dealloc)(void *ptr, size_t size, void *ctx);
+    void *ctx;
 } LZHTableAllocator;
 
 typedef struct _lzhtable_node_
