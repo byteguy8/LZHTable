@@ -75,15 +75,7 @@ uint32_t jenkins_hash(const uint8_t *key, size_t length){
 }
 
 void lzhtable_node_destroy(struct lzhtable_node *node, struct lzhtable *table){
-    node->hash = 0;
-    node->value = NULL;
-    
-    node->next_table_node = NULL;
-    node->previous_table_node = NULL;
-
-    node->next_bucket_node = NULL;
-    node->previous_bucket_node = NULL;
-    
+    memset(node, 0, NODE_SIZE);
     lzdealloc(node, NODE_SIZE, table->allocator);
 }
 
