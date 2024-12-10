@@ -43,7 +43,7 @@ typedef struct lzhtable{
 
 // interface
 struct lzhtable *lzhtable_create(size_t length, struct lzhtable_allocator *allocator);
-void lzhtable_destroy(void (*destroy_value)(void *value), struct lzhtable *table);
+void lzhtable_destroy(void (*destroy_value)(void *key, void *value), struct lzhtable *table);
 
 uint32_t lzhtable_hash(uint8_t *key, size_t key_size);
 
