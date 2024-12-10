@@ -90,7 +90,7 @@ void lzhtable_node_destroy(struct lzhtable_node *node, struct lzhtable *table)
 
     node->next_bucket_node = NULL;
     node->previous_bucket_node = NULL;
-
+    
     lzdealloc(node, NODE_SIZE, table->allocator);
 }
 
@@ -312,16 +312,19 @@ int lzhtable_hash_remove(uint32_t hash, struct lzhtable *table, void **value){
 
         if (node == table->nodes)
             table->nodes = node->previous_table_node;
+        
+        if(node == bucket->head)
+            bucket->head = node->next_bucket_node;
+        if(node == bucket->tail)
+            bucket->tail = node->previous_bucket_node;
 
         if (node->previous_table_node)
             node->previous_table_node->next_table_node = node->next_table_node;
-
         if (node->next_table_node)
             node->next_table_node->previous_table_node = node->previous_table_node;
 
         if (node->previous_bucket_node)
             node->previous_bucket_node->next_bucket_node = node->next_bucket_node;
-
         if (node->next_bucket_node)
             node->next_bucket_node->previous_bucket_node = node->previous_bucket_node;
 
