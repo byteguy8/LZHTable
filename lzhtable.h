@@ -7,18 +7,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct lzhtable_allocator
-{
+typedef struct lzhtable_allocator{
     void *(*alloc)(size_t byes, void *ctx);
     void *(*realloc)(void *ptr, size_t old_size, size_t new_size, void *ctx);
     void (*dealloc)(void *ptr, size_t size, void *ctx);
     void *ctx;
 } LZHTableAllocator;
 
-typedef struct lzhtable_node
-{
-    uint32_t hash;
+typedef struct lzhtable_node{
     void *value;
+    uint32_t hash;
 
     struct lzhtable_node *previous_table_node;
     struct lzhtable_node *next_table_node;
@@ -27,15 +25,13 @@ typedef struct lzhtable_node
     struct lzhtable_node *next_bucket_node;
 } LZHTableNode;
 
-typedef struct lzhtable_bucket
-{
+typedef struct lzhtable_bucket{
     size_t size;
     struct lzhtable_node *head;
     struct lzhtable_node *tail;
 } LZHTableBucket;
 
-typedef struct lzhtable
-{
+typedef struct lzhtable{
     size_t m; // count of buckets available
     size_t n; // count of distinct elements in the table
     struct lzhtable_bucket *buckets;
