@@ -34,9 +34,10 @@ typedef struct lzhtable_bucket{
 typedef struct lzhtable{
     size_t m; // count of buckets available
     size_t n; // count of distinct elements in the table
-    struct lzhtable_bucket *buckets;
-    struct lzhtable_node *nodes;
     struct lzhtable_allocator *allocator;
+    struct lzhtable_bucket *buckets;
+    struct lzhtable_node *head;
+    struct lzhtable_node *tail;
 } LZHTable;
 
 // interface
