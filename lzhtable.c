@@ -21,9 +21,10 @@ static uint32_t jenkins_hash(const uint8_t *key, size_t length);
 void lzhtable_node_destroy(struct lzhtable_node *node, struct lzhtable *table);
 int lzhtable_compare(uint32_t hash, struct lzhtable_bucket *bucket, struct lzhtable_node **out_node);
 int lzhtable_bucket_hash_insert(
-    uint32_t hash, 
-    void *value, 
-    struct lzhtable_bucket *bucket, 
+    void *key,
+    void *value,
+    uint32_t hash,
+    struct lzhtable_bucket *bucket,
     struct lzhtable_node **out_node,
     struct lzhtable_allocator *allocator
 );
@@ -97,9 +98,10 @@ int lzhtable_compare(uint32_t hash, struct lzhtable_bucket *bucket, struct lzhta
 }
 
 int lzhtable_bucket_hash_insert(
-    uint32_t hash, 
-    void *value, 
-    struct lzhtable_bucket *bucket, 
+    void *key,
+    void *value,
+    uint32_t hash,
+    struct lzhtable_bucket *bucket,
     struct lzhtable_node **out_node,
     struct lzhtable_allocator *allocator
 ){
@@ -107,12 +109,11 @@ int lzhtable_bucket_hash_insert(
 
     if (!node) return 1;
 
-    node->hash = hash;
+    node->key = key;
     node->value = value;
-
+    node->hash = hash;
     node->previous_table_node = NULL;
     node->next_table_node = NULL;
-
     node->previous_bucket_node = NULL;
     node->next_bucket_node = NULL;
 
@@ -120,8 +121,9 @@ int lzhtable_bucket_hash_insert(
         node->previous_bucket_node = bucket->tail;
         bucket->tail->next_bucket_node = node;
     }
-    else
+    else{
         bucket->head = node;
+    }
 
     bucket->size++;
     bucket->tail = node;
@@ -141,7 +143,7 @@ int lzhtable_bucket_insert(
     struct lzhtable_node **out_node
 ){
     uint32_t hash = jenkins_hash(key, key_size);
-    return lzhtable_bucket_hash_insert(hash, value, bucket, out_node, allocator);
+    return lzhtable_bucket_hash_insert(key, value, hash, bucket, out_node, allocator);
 }
 
 // public implementation
@@ -229,7 +231,7 @@ void *lzhtable_get(uint8_t *key, size_t key_size, struct lzhtable *table){
     return lzhtable_hash_get(k, table);
 }
 
-int lzhtable_hash_put(uint32_t hash, void *value, struct lzhtable *table){
+int lzhtable_hash_put_key(void *key, uint32_t hash, void *value, struct lzhtable *table){
     size_t index = hash % table->m;
 
     struct lzhtable_bucket *bucket = &table->buckets[index];
@@ -240,7 +242,7 @@ int lzhtable_hash_put(uint32_t hash, void *value, struct lzhtable *table){
         return 0;
     }
 
-    if (lzhtable_bucket_hash_insert(hash, value, bucket, &node, table->allocator))
+    if (lzhtable_bucket_hash_insert(key, value, hash, bucket, &node, table->allocator))
         return 1;
 
     if(table->tail){
@@ -254,6 +256,10 @@ int lzhtable_hash_put(uint32_t hash, void *value, struct lzhtable *table){
     table->tail = node;
 
     return 0;
+}
+
+int lzhtable_hash_put(uint32_t hash, void *value, struct lzhtable *table){
+    return lzhtable_hash_put_key(NULL, hash, value, table);
 }
 
 int lzhtable_put(uint8_t *key, size_t key_size, void *value, struct lzhtable *table, uint32_t **hash_out){

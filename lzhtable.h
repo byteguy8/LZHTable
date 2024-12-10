@@ -15,6 +15,7 @@ typedef struct lzhtable_allocator{
 } LZHTableAllocator;
 
 typedef struct lzhtable_node{
+    void *key;
     void *value;
     uint32_t hash;
 
@@ -61,6 +62,7 @@ struct lzhtable_bucket *lzhtable_contains(
 void *lzhtable_hash_get(uint32_t hash, struct lzhtable *table);
 void *lzhtable_get(uint8_t *key, size_t key_size, struct lzhtable *table);
 
+int lzhtable_hash_put_key(void *key, uint32_t hash, void *value, struct lzhtable *table);
 int lzhtable_hash_put(uint32_t hash, void *value, struct lzhtable *table);
 int lzhtable_put(
     uint8_t *key,
