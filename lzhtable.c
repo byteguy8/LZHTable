@@ -6,22 +6,22 @@
 #define TABLE_SIZE (sizeof(LZHTable))
 
 // PRIVATE INTERFACE
-static void *lzalloc(size_t size, struct lzhtable_allocator *allocator);
+static void *lzalloc(size_t size, LZHTableAllocator *allocator);
 static void *lzrealloc(
     void *ptr,
     size_t old_size,
     size_t new_size,
-    struct lzhtable_allocator *allocator
+    LZHTableAllocator *allocator
 );
 static void lzdealloc(
     void *ptr,
     size_t size,
-    struct lzhtable_allocator *allocator
+    LZHTableAllocator *allocator
 );
 static uint32_t one_at_a_time_hash(const uint8_t *key, size_t length);
 static uint32_t fnv_1a_hash(const uint8_t *key, size_t key_size);
-static void destroy_node(struct lzhtable_node *node, struct lzhtable *table);
-static int compare(uint32_t hash, struct lzhtable_bucket *bucket, struct lzhtable_node **out_node);
+static void destroy_node(LZHTableNode *node, LZHTable *table);
+static int compare(uint32_t hash, LZHTableBucket *bucket, LZHTableNode **out_node);
 static int bucket_insert(LZHTableBucket *bucket, LZHTableNode *node);
 static int bucket_hash_insert(
     void *key,
@@ -35,24 +35,24 @@ static int bucket_key_insert(
     uint8_t *key, 
     size_t key_size, 
     void *value, 
-    struct lzhtable_bucket *bucket, 
-    struct lzhtable_allocator *allocator, 
-    struct lzhtable_node **out_node
+    LZHTableBucket *bucket, 
+    LZHTableAllocator *allocator, 
+    LZHTableNode **out_node
 );
 static void relocate(LZHTable *table);
 static int resize(LZHTable *table);
 static void print_bucket(LZHTableBucket *bucket);
 
 // PRIVATE IMPLEMENTATION
-void *lzalloc(size_t size, struct lzhtable_allocator *allocator){
+void *lzalloc(size_t size, LZHTableAllocator *allocator){
     return allocator ? allocator->alloc(size, allocator->ctx) : malloc(size);
 }
 
-void *lzrealloc(void *ptr, size_t old_size, size_t new_size, struct lzhtable_allocator *allocator){
+void *lzrealloc(void *ptr, size_t old_size, size_t new_size, LZHTableAllocator *allocator){
     return allocator ? allocator->realloc(ptr, old_size, new_size, allocator->ctx) : realloc(ptr, new_size);
 }
 
-void lzdealloc(void *ptr, size_t size, struct lzhtable_allocator *allocator){
+void lzdealloc(void *ptr, size_t size, LZHTableAllocator *allocator){
     if (!ptr){
         return;
     }
@@ -95,16 +95,16 @@ static uint32_t fnv_1a_hash(const uint8_t *key, size_t key_size){
     return hash;
 }
 
-void destroy_node(struct lzhtable_node *node, struct lzhtable *table){
+void destroy_node(LZHTableNode *node, LZHTable *table){
     memset(node, 0, NODE_SIZE);
     lzdealloc(node, NODE_SIZE, table->allocator);
 }
 
-int compare(uint32_t hash, struct lzhtable_bucket *bucket, struct lzhtable_node **out_node){
-    struct lzhtable_node *node = bucket->head;
+int compare(uint32_t hash, LZHTableBucket *bucket, LZHTableNode **out_node){
+    LZHTableNode *node = bucket->head;
 
     while (node){
-        struct lzhtable_node *next = node->next_bucket_node;
+        LZHTableNode *next = node->next_bucket_node;
 
         if (node->hash == hash){
             if (out_node){
@@ -168,16 +168,16 @@ int bucket_key_insert(
     uint8_t *key, 
     size_t key_size, 
     void *value, 
-    struct lzhtable_bucket *bucket, 
-    struct lzhtable_allocator *allocator, 
-    struct lzhtable_node **out_node
+    LZHTableBucket *bucket, 
+    LZHTableAllocator *allocator, 
+    LZHTableNode **out_node
 ){
-    uint32_t hash = one_at_a_time_hash(key, key_size);
+    uint32_t hash = fnv_1a_hash(key, key_size);
     return bucket_hash_insert(key, value, hash, bucket, out_node, allocator);
 }
 
 void relocate(LZHTable *table){
-    memset(table->buckets, 0, sizeof(LZHTableBucket) * table->m);
+    memset(table->buckets, 0, BUCKET_SIZE * table->m);
     
     LZHTableNode *current = table->head;
     
@@ -238,15 +238,15 @@ void print_bucket(LZHTableBucket *bucket){
 }
 
 // PUBLIC IMPLEMENTATION
-struct lzhtable *lzhtable_create(size_t length, LZHTableAllocator *allocator){
-    size_t buckets_length = sizeof(struct lzhtable_bucket) * length;
+LZHTable *lzhtable_create(size_t length, LZHTableAllocator *allocator){
+    size_t buckets_length = BUCKET_SIZE * length;
 
-    struct lzhtable_bucket *buckets = (struct lzhtable_bucket *)lzalloc(buckets_length, allocator);
-    struct lzhtable *table = (struct lzhtable *)lzalloc(sizeof(struct lzhtable), allocator);
+    LZHTableBucket *buckets = (LZHTableBucket *)lzalloc(buckets_length, allocator);
+    LZHTable *table = (LZHTable *)lzalloc(TABLE_SIZE, allocator);
 
     if (!buckets || !table){
         lzdealloc(buckets, buckets_length, allocator);
-        lzdealloc(table, sizeof(struct lzhtable), allocator);
+        lzdealloc(table, TABLE_SIZE, allocator);
 
         return NULL;
     }
@@ -266,13 +266,13 @@ struct lzhtable *lzhtable_create(size_t length, LZHTableAllocator *allocator){
 void lzhtable_destroy(void (*destroy_value)(void *key, void *value), LZHTable *table){
     if (!table) return;
 
-    struct lzhtable_allocator *allocator = table->allocator;
-    struct lzhtable_node *node = table->head;
+    LZHTableAllocator *allocator = table->allocator;
+    LZHTableNode *node = table->head;
 
     while (node){
         void *key = node->key;
         void *value = node->value;
-        struct lzhtable_node *next = node->next_table_node;
+        LZHTableNode *next = node->next_table_node;
 
         if(destroy_value)
             destroy_value(key, value);
@@ -282,9 +282,9 @@ void lzhtable_destroy(void (*destroy_value)(void *key, void *value), LZHTable *t
         node = next;
     }
 
-    lzdealloc(table->buckets, sizeof(struct lzhtable_bucket) * table->m, allocator);
+    lzdealloc(table->buckets, BUCKET_SIZE * table->m, allocator);
     memset(table, 0, TABLE_SIZE);
-    lzdealloc(table, sizeof(struct lzhtable), allocator);
+    lzdealloc(table, TABLE_SIZE, allocator);
 }
 
 void lzhtable_print(LZHTable *table){
@@ -301,9 +301,9 @@ uint32_t lzhtable_hash(uint8_t *key, size_t key_size){
     return fnv_1a_hash((const uint8_t *)key, key_size);
 }
 
-struct lzhtable_bucket *lzhtable_hash_contains(uint32_t hash, LZHTable *table, LZHTableNode **node_out){
+LZHTableBucket *lzhtable_hash_contains(uint32_t hash, LZHTable *table, LZHTableNode **node_out){
     size_t index = hash % table->m;
-    struct lzhtable_bucket *bucket = &table->buckets[index];
+    LZHTableBucket *bucket = &table->buckets[index];
 
     if (compare(hash, bucket, node_out))
         return bucket;
@@ -311,16 +311,16 @@ struct lzhtable_bucket *lzhtable_hash_contains(uint32_t hash, LZHTable *table, L
     return NULL;
 }
 
-struct lzhtable_bucket *lzhtable_contains(uint8_t *key, size_t key_size, LZHTable *table, LZHTableNode **node_out){
-    uint32_t k = one_at_a_time_hash(key, key_size);
+LZHTableBucket *lzhtable_contains(uint8_t *key, size_t key_size, LZHTable *table, LZHTableNode **node_out){
+    uint32_t k = fnv_1a_hash(key, key_size);
     return lzhtable_hash_contains(k, table, node_out);
 }
 
 void *lzhtable_hash_get(uint32_t hash, LZHTable *table){
     size_t index = hash % table->m;
 
-    struct lzhtable_bucket *bucket = &table->buckets[index];
-    struct lzhtable_node *node = NULL;
+    LZHTableBucket *bucket = &table->buckets[index];
+    LZHTableNode *node = NULL;
 
     if (compare(hash, bucket, &node))
         return node->value;
@@ -329,7 +329,7 @@ void *lzhtable_hash_get(uint32_t hash, LZHTable *table){
 }
 
 void *lzhtable_get(uint8_t *key, size_t key_size, LZHTable *table){
-    uint32_t k = one_at_a_time_hash(key, key_size);
+    uint32_t k = fnv_1a_hash(key, key_size);
     return lzhtable_hash_get(k, table);
 }
 
@@ -370,19 +370,19 @@ int lzhtable_hash_put(uint32_t hash, void *value, LZHTable *table){
 }
 
 int lzhtable_put(uint8_t *key, size_t key_size, void *value, LZHTable *table, uint32_t **hash_out){
-    uint32_t k = one_at_a_time_hash(key, key_size);
+    uint32_t k = fnv_1a_hash(key, key_size);
     if(hash_out) **hash_out = k;
     return lzhtable_hash_put(k, value, table);
 }
 
 int lzhtable_hash_remove(uint32_t hash, LZHTable *table, void **value){
     size_t index = hash % table->m;
-    struct lzhtable_bucket *bucket = &table->buckets[index];
+    LZHTableBucket *bucket = &table->buckets[index];
 
     if (bucket->size == 0)
         return 1;
 
-    struct lzhtable_node *node = NULL;
+    LZHTableNode *node = NULL;
 
     if (compare(hash, bucket, &node)){
         if (value)
@@ -419,7 +419,7 @@ int lzhtable_hash_remove(uint32_t hash, LZHTable *table, void **value){
 }
 
 int lzhtable_remove(uint8_t *key, size_t key_size, LZHTable *table, void **value){
-    uint32_t k = one_at_a_time_hash(key, key_size);
+    uint32_t k = fnv_1a_hash(key, key_size);
     return lzhtable_hash_remove(k, table, value);
 }
 
@@ -428,12 +428,12 @@ void lzhtable_clear(void (*clear_fn)(void *value), LZHTable *table){
     table->head = NULL;
     table->tail = NULL;
 
-    memset(table->buckets, 0, sizeof(struct lzhtable_bucket) * table->m);
+    memset(table->buckets, 0, BUCKET_SIZE * table->m);
 
-    struct lzhtable_node *node = table->head;
+    LZHTableNode *node = table->head;
 
     while (node){
-        struct lzhtable_node *prev = node->prev_table_node;
+        LZHTableNode *prev = node->prev_table_node;
 
         if (clear_fn)
             clear_fn(node->value);
